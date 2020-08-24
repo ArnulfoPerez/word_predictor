@@ -1,0 +1,42 @@
+---
+title: "Data Science Capstone final project"
+author: "Arnulfo Perez"
+date: "23/8/2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Next word predictor
+
+The project consists of a Shinny application that implements a simple ngram model that predicts the next word of a text using trigrams and bigrams dictionaries that return a list of words order by count.
+
+## Algorithm
+
+0. A sample of the English corpus given by Coursera-SwiftKey is used to build indexed dictionaries for trigrams, bigrams, and unigrams. The dictionaries are stored in files to be used by the app.
+1. The last 2 words of the input text are used to look for words in the trigram dictionary. 
+2. If the entry exists, the word with the highest count is returned, otherwise the last word is used to look for words in the bigram dictionary. 
+3. If the entry exists, the word with the highest count is returned, otherwise a random word is returned from the unigram list.
+
+
+## How to use
+
+The user interface has two inputs: A textbox and a numeric box. The app detects by itself when the input changes and gives the corresponding prediction.   The textbox is used to enter text and the numeric box allows the user to select how many candidates for the probable next word to see.
+
+The shinny app is available at <https://zintegra.shinyapps.io/Next_word_predictor/>
+
+The source code for this application can be found at <https://github.com/ArnulfoPerez/wordpredictor>
+
+## Comments
+
+The app is fast and compact. Despite the simplicity of the model the performance is surprisingly good.
+A possible extension is to add a history, where the user input is used to update the look up dictionaries. The challenge is to make it dynamic and fast.
+
+The Johns Hopkins Data Science specialization, and this capstone, has been a rewarding experience. Thank you all.
+
+
+
+
+

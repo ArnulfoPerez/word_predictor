@@ -1,0 +1,315 @@
+---
+title: "Exploratory Data Analysis"
+author: "Arnulfo Perez"
+date: "23/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE,cache=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(stringi) #for string manipulation
+library(stringr) #for string manipulation
+library(kableExtra) #for pretty table outputs
+library(dplyr)
+
+twitterFile <-"final/en_US/en_US.twitter.txt"
+blogFile <- "final/en_US/en_US.blogs.txt"
+newsFile <- "final/en_US/en_US.news.txt"
+
+tweet.con <- file(twitterFile, open = "rb")
+tweet.vector <- readLines(tweet.con, encoding = "UTF-8")
+tweet.count <- length(tweet.vector)
+close(tweet.con)
+
+blog.con <- file(blogFile, open = "rb")
+blog.vector <- readLines(blog.con, encoding = "UTF-8")
+blog.count <- length(blog.vector)
+close(blog.con)
+
+news.con <- file(newsFile, open = "rb")
+news.vector <- readLines(news.con, encoding = "UTF-8")
+news.count <- length(news.vector)
+close(news.con)
+```
+
+## Introduction
+
+### Exploratory Data Analysis
+The first step in building a predictive model for text is understanding the distribution and relationship between the words, tokens, and phrases in the text. The goal of this task is to understand the basic relationships you observe in the data and prepare to build your first linguistic models.
+
+#### Tasks to accomplish
+
+Exploratory analysis - perform a thorough exploratory analysis of the data, understanding the distribution of words and relationship between the words in the corpora.
+
+Understand frequencies of words and word pairs - build figures and tables to understand variation in the frequencies of words and word pairs in the data.
+
+##### Questions to consider
+
+1. Some words are more frequent than others - what are the distributions of word frequencies?
+2. What are the frequencies of 2-grams and 3-grams in the dataset?
+3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
+4. How do you evaluate how many of the words come from foreign languages?
+5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
+
+### Modeling
+The goal here is to build your first simple model for the relationship between words. This is the first step in building a predictive text mining application. You will explore simple models and discover more complicated modeling techniques.
+
+#### Tasks to accomplish
+
+1. Build basic n-gram model - using the exploratory analysis you performed, build a basic n-gram model for predicting the next word based on the previous 1, 2, or 3 words.
+2. Build a model to handle unseen n-grams - in some cases people will want to type a combination of words that does not appear in the corpora. Build a model to handle cases where a particular n-gram isn't observed.
+
+###### Questions to consider
+
+1. How can you efficiently store an n-gram model (think Markov Chains)?
+2. How can you use the knowledge about word frequencies to make your model smaller and more efficient?
+3. How many parameters do you need (i.e. how big is n in your n-gram model)?
+4. Can you think of simple ways to "smooth" the probabilities (think about giving all n-grams a non-zero 5. probability even if they aren't observed in the data) ?
+6. How do you evaluate whether your model is any good?
+7. How can you use backoff models to estimate the probability of unobserved n-grams?
+
+### Hints, tips, and tricks
+
+As you develop your prediction model, two key aspects that you will have to keep in mind are the size and runtime of the algorithm. These are defined as:
+
+Size: the amount of memory (physical RAM) required to run the model in R
+Runtime: The amount of time the algorithm takes to make a prediction given the acceptable input
+Your goal for this prediction model is to minimize both the size and runtime of the model in order to provide a reasonable experience to the user.
+
+Keep in mind that currently available predictive text models can run on mobile phones, which typically have limited memory and processing power compared to desktop computers. Therefore, you should consider very carefully (1) how much memory is being used by the objects in your workspace; and (2) how much time it is taking to run your model. Ultimately, your model will need to run in a Shiny app that runs on the shinyapps.io server.
+
+Here are a few tools that may be of use to you as you work on their algorithm:
+
+object.size(): this function reports the number of bytes that an R object occupies in memory
+
+Rprof(): this function runs the profiler in R that can be used to determine where bottlenecks in your function may exist. The profr package (available on CRAN) provides some additional tools for visualizing and summarizing profiling data.
+
+gc(): this function runs the garbage collector to retrieve unused RAM for R. In the process it tells you how much memory is currently being used by R.
+
+There will likely be a tradeoff that you have to make in between size and runtime. For example, an algorithm that requires a lot of memory, may run faster, while a slower algorithm may require less memory. You will have to find the right balance between the two in order to provide a good experience to the user.
+
+## Distributions of word frequencies
+
+### Raw text files
+
+The data consists of a three sets: tweets, blogs, and news
+
+```{r raw, echo=FALSE, message=FALSE}
+
+library(kableExtra) #for pretty table outputs
+library(dplyr)
+
+#stringi::stri_stats_general(tweet.vector)
+#stringi::stri_stats_general(news.vector)
+#stringi::stri_stats_general(blog.vector)
+
+size_blogs <- file.info(blogFile)$size/1024^2
+size_news <- file.info(newsFile)$size/1024^2
+size_twitter <- file.info(twitterFile)$size/1024^2
+summary_table <- data.frame(filename = c("blogs", "news", "twitter"), 
+                            file_size_MB = c(size_blogs, size_news, size_twitter), 
+                            num_lines = c(length(blog.vector), length(news.vector), length(tweet.vector)), 
+                            max_length = c(max(nchar(blog.vector)), max(nchar(news.vector)), max(nchar(tweet.vector))), 
+                            min_length = c(min(nchar(blog.vector)), min(nchar(news.vector)), min(nchar(tweet.vector))), 
+                            mean_length = c(mean(nchar(blog.vector)), mean(nchar(news.vector)), mean(nchar(tweet.vector))))
+kable(summary_table, format = "html") %>%
+        kable_styling(bootstrap_options = "striped", font_size = 9) %>%
+        column_spec(1, bold = TRUE) %>%
+        column_spec(2:6, background = "lightgreen") %>%
+        add_header_above(c(" "=1,"Raw text  files parameters"=5))
+#summary_table
+
+```
+
+### Tweets
+
+```{r tweets, echo=FALSE}
+
+head(tweet.vector,n=3)
+
+```
+
+### Blogs
+
+```{r blogs, echo=FALSE}
+
+head(blog.vector, n=3)
+
+```
+
+### News
+
+```{r news, echo=FALSE}
+
+head(news.vector, n=2)
+
+```
+### Corpus
+
+Words by sample corpus of the text files
+
+```{r corpus, echo=FALSE, message=FALSE}
+
+library(quanteda)
+library(stringi)
+library(ggplot2)
+
+set.seed(12345)
+
+fraction <- 0.05
+
+tweet.subset <- sample(tweet.vector, size = length(tweet.vector) * fraction, replace = FALSE)
+tweet.corpus <- corpus(tweet.subset)
+
+blog.subset <- sample(blog.vector, size = length(blog.vector) * fraction, replace = FALSE)
+blog.corpus <- corpus(blog.subset)
+
+news.subset <- sample(news.vector, size = length(news.vector) * fraction, replace = FALSE)
+news.corpus <- corpus(news.subset)
+
+words_blogs <- stri_count_words(blog.corpus)
+words_news <- stri_count_words(news.corpus)
+words_twitter <- stri_count_words(tweet.corpus)
+size_blogs <- file.info(blogFile)$size/1024^2
+size_news <- file.info(newsFile)$size/1024^2
+size_twitter <- file.info(twitterFile)$size/1024^2
+summary_table <- data.frame(filename = c("blogs", "news", "twitter"), 
+                            file_size_MB = c(size_blogs, size_news, size_twitter), 
+                            num_lines = c(length(blog.corpus), length(news.corpus), length(tweet.corpus)), 
+                            num_words = c(sum(words_blogs), sum(words_news), sum(words_twitter)), 
+                            mean_num_words = c(mean(words_blogs), mean(words_news), mean(words_twitter)))
+
+kable(summary_table, format = "html") %>%
+        kable_styling(bootstrap_options = "striped", font_size = 9) %>%
+        column_spec(1, bold = TRUE) %>%
+        column_spec(2:5, background = "lightgreen") %>%
+        add_header_above(c(" "=1,"Words by sample corpus"=4))
+
+```
+
+#### Tweets
+
+Top 30 Words and ngrams by sample corpus of the Tweet file
+
+```{r corpus tweets, echo=FALSE, message=FALSE}
+
+library(quanteda)
+
+summary(tweet.corpus,n=10)
+
+doc.tokens <- tokens(tweet.corpus)
+doc.tokens <- tokens(doc.tokens, remove_punct = TRUE, remove_numbers = TRUE)
+doc.tokens <- tokens_tolower(doc.tokens)
+doc.dfm.final <- dfm(doc.tokens)
+# topfeatures(doc.dfm.final, 20,scheme = "docfreq")
+top.features <- topfeatures(doc.dfm.final, 30)
+top.features.df <- data.frame(top.features)
+top.features.df["unigram"] <- rownames(top.features.df)
+ggplot(top.features.df, aes(x = reorder(unigram, -top.features), y = top.features)) + 
+  geom_bar(position = "identity", stat = "identity", fill = "darkred") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Feature") + ylab("Count")
+
+toks_ngram <- tokens_ngrams(doc.tokens, n = 2:4)
+ngrams.dfm <- dfm(toks_ngram)
+top.features <- topfeatures(ngrams.dfm, 30)
+top.features.df <- data.frame(top.features)
+top.features.df["unigram"] <- rownames(top.features.df)
+ggplot(top.features.df, aes(x = reorder(unigram, -top.features), y = top.features)) + 
+  geom_bar(position = "identity", stat = "identity", fill = "darkred") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Feature") + ylab("Count")
+
+```
+
+#### Blogs
+
+Top 30 Words and ngrams by sample corpus of the Blog file
+
+```{r corpus blogs, echo=FALSE, message=FALSE}
+
+library(quanteda)
+
+summary(blog.corpus,n=10)
+
+doc.tokens <- tokens(blog.corpus)
+doc.tokens <- tokens(doc.tokens, remove_punct = TRUE, remove_numbers = TRUE)
+doc.tokens <- tokens_tolower(doc.tokens)
+doc.dfm.final <- dfm(doc.tokens)
+# topfeatures(doc.dfm.final, 20,scheme = "docfreq")
+# topfeatures(doc.dfm.final, 50,scheme = "count")
+top.features <- topfeatures(doc.dfm.final, 30)
+top.features.df <- data.frame(top.features)
+top.features.df["unigram"] <- rownames(top.features.df)
+ggplot(top.features.df, aes(x = reorder(unigram, -top.features), y = top.features)) + 
+  geom_bar(position = "identity", stat = "identity", fill = "darkred") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Feature") + ylab("Count")
+
+toks_ngram <- tokens_ngrams(doc.tokens, n = 2:4)
+ngrams.dfm <- dfm(toks_ngram)
+top.features <- topfeatures(ngrams.dfm, 30)
+top.features.df <- data.frame(top.features)
+top.features.df["unigram"] <- rownames(top.features.df)
+ggplot(top.features.df, aes(x = reorder(unigram, -top.features), y = top.features)) + 
+  geom_bar(position = "identity", stat = "identity", fill = "darkred") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Feature") + ylab("Count")
+```
+
+#### News
+
+Top 30 Words and ngrams by sample corpus of the News file
+
+```{r corpus news, echo=FALSE, message=FALSE}
+
+library(quanteda)
+library(ggplot2)
+
+summary(news.corpus,n=10)
+
+doc.tokens <- tokens(news.corpus)
+doc.tokens <- tokens(doc.tokens, remove_punct = TRUE, remove_numbers = TRUE)
+doc.tokens <- tokens_tolower(doc.tokens)
+doc.dfm.final <- dfm(doc.tokens)
+
+# topfeatures(doc.dfm.final, 20,scheme = "docfreq")
+#topfeatures(doc.dfm.final, 50,scheme = "count")
+top.features <- topfeatures(doc.dfm.final, 30)
+top.features.df <- data.frame(top.features)
+top.features.df["unigram"] <- rownames(top.features.df)
+ggplot(top.features.df, aes(x = reorder(unigram, -top.features), y = top.features)) + 
+  geom_bar(position = "identity", stat = "identity", fill = "darkred") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Feature") + ylab("Count")
+
+toks_ngram <- tokens_ngrams(doc.tokens, n = 2:4)
+ngrams.dfm <- dfm(toks_ngram)
+#topfeatures(ngrams.dfm, 50,scheme = "count")
+
+top.features <- topfeatures(ngrams.dfm, 30)
+top.features.df <- data.frame(top.features)
+top.features.df["unigram"] <- rownames(top.features.df)
+ggplot(top.features.df, aes(x = reorder(unigram, -top.features), y = top.features)) + 
+  geom_bar(position = "identity", stat = "identity", fill = "darkred") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Feature") + ylab("Count")
+
+textplot_wordcloud(doc.dfm.final)
+
+```
+
+#### Trimmed set by quantil (20%, 50%, 80%, 90%)
+```{r corpus news trimmed, echo=FALSE, message=FALSE}
+
+
+dfm_trim(doc.dfm.final, min_termfreq = 0.2, termfreq_type = "quantile")
+dfm_trim(doc.dfm.final, min_termfreq = 0.5, termfreq_type = "quantile")
+dfm_trim(doc.dfm.final, min_termfreq = 0.8, termfreq_type = "quantile")
+dfm_trim(doc.dfm.final, min_termfreq = 0.9, termfreq_type = "quantile")
+                                           
+```
+
+## Discussion
+
+1. *Some words are more frequent than others - what are the distributions of word frequencies?* Most frequent words are grammatical elements, like articles and conjunctions
+2. *What are the frequencies of 2-grams and 3-grams in the dataset?* Most common ngrams are grammatical sequences.
+3. *How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?* the top 10% most frequent of words cover 90% of the cases
+4. *How do you evaluate how many of the words come from foreign languages?* I did not check for foreign words. Basically there are words not in the dictionary.
+5. *Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?* Stemming can be used to increase coverage and reduce the size of the dictionary.
+
+6. *How can you efficiently store an n-gram model (think Markov Chains)?* The Quanteda package provide a document-feature matrix structure to efficiently store and manipulate dictionaries and ngrams.
+7. *How can you use the knowledge about word frequencies to make your model smaller and more efficient?* A  90 % quantil can be used as the dictionary.
+8. *How many parameters do you need (i.e. how big is n in your n-gram model)?* n from 1 to 4 should work fine.
+9. *Can you think of simple ways to "smooth" the probabilities (think about giving all n-grams a non-zero 5. probability even if they aren't observed in the data) ?* The standard way is to add 1/n to all probabilities
+10. *How do you evaluate whether your model is any good?* A test set of given phrases can be used
+11. *How can you use backoff models to estimate the probability of unobserved n-grams?* In language-model estimation, a common practice is to back off to (n-1)-grams whenever an n-gram count is less than 5.
